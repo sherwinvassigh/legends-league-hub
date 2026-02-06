@@ -1,0 +1,396 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, PageHeader } from "@/components/ui";
+import { formatDistanceToNow } from "date-fns";
+
+interface TransactionDisplay {
+  transaction_id: string;
+  type: "trade" | "waiver" | "free_agent" | "commissioner";
+  status_updated: number;
+  managerName: string;
+  managerNames: string[];
+  addedPlayers: { name: string; rosterId: number }[];
+  droppedPlayers: { name: string; rosterId: number }[];
+  draftPicks: { label: string; rosterId: number }[];
+  waiverBid: number | null;
+  tradeSides: {
+    name: string;
+    receives: { players: string[]; picks: string[] };
+  }[];
+}
+
+const INITIAL_LIMIT = 25;
+const LOAD_MORE_COUNT = 25;
+
+export default function TransactionsPage() {
+  const [transactions, setTransactions] = useState<TransactionDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [season, setSeason] = useState("");
+  const [visibleCount, setVisibleCount] = useState(INITIAL_LIMIT);
+  const [filter, setFilter] = useState<
+    "all" | "trade" | "waiver" | "free_agent"
+  >("all");
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const configRes = await fetch(
+          "https://api.sleeper.app/v1/league/1313306806897881088"
+        );
+        const configLeague = await configRes.json();
+        let leagueId = configLeague.league_id;
+        if (
+          configLeague.status === "pre_draft" &&
+          configLeague.previous_league_id
+        ) {
+          leagueId = configLeague.previous_league_id;
+        }
+
+        const [leagueRes, usersRes, rostersRes, playersRes] =
+          await Promise.all([
+            fetch(`https://api.sleeper.app/v1/league/${leagueId}`),
+            fetch(`https://api.sleeper.app/v1/league/${leagueId}/users`),
+            fetch(`https://api.sleeper.app/v1/league/${leagueId}/rosters`),
+            fetch("https://api.sleeper.app/v1/players/nfl"),
+          ]);
+
+        const [league, users, rosters, players] = await Promise.all([
+          leagueRes.json(),
+          usersRes.json(),
+          rostersRes.json(),
+          playersRes.json(),
+        ]);
+
+        setSeason(league.season);
+
+        const userMap = new Map(
+          users.map(
+            (u: {
+              user_id: string;
+              display_name?: string;
+              username?: string;
+            }) => [u.user_id, u]
+          )
+        );
+        const rosterToUser = new Map(
+          rosters.map((r: { roster_id: number; owner_id: string }) => [
+            r.roster_id,
+            userMap.get(r.owner_id),
+          ])
+        );
+
+        function getPlayerName(id: string): string {
+          const p = players[id];
+          if (!p) return `Player ${id}`;
+          return `${p.first_name} ${p.last_name}`;
+        }
+
+        function getManagerName(rosterId: number): string {
+          const user = rosterToUser.get(rosterId) as
+            | { display_name?: string; username?: string }
+            | undefined;
+          return user?.display_name || user?.username || "Unknown";
+        }
+
+        // Fetch all transactions from all weeks
+        const totalWeeks = 18;
+        const weekPromises = Array.from({ length: totalWeeks }, (_, i) =>
+          fetch(
+            `https://api.sleeper.app/v1/league/${leagueId}/transactions/${i + 1}`
+          )
+            .then((r) => r.json())
+            .catch(() => [])
+        );
+        const allWeeks = await Promise.all(weekPromises);
+        const allTxns = allWeeks
+          .flat()
+          .filter((t: { status: string }) => t.status === "complete")
+          .sort(
+            (
+              a: { status_updated: number },
+              b: { status_updated: number }
+            ) => b.status_updated - a.status_updated
+          );
+
+        const displayTxns: TransactionDisplay[] = allTxns.map(
+          (txn: {
+            transaction_id: string;
+            type: "trade" | "waiver" | "free_agent" | "commissioner";
+            status_updated: number;
+            roster_ids: number[];
+            adds: Record<string, number> | null;
+            drops: Record<string, number> | null;
+            draft_picks: {
+              season: string;
+              round: number;
+              owner_id: number;
+            }[];
+            settings: { waiver_bid?: number } | null;
+          }) => {
+            const managerName = getManagerName(txn.roster_ids[0]);
+            const managerNames = txn.roster_ids.map(getManagerName);
+
+            const addedPlayers = txn.adds
+              ? Object.entries(txn.adds).map(([id, rId]) => ({
+                  name: getPlayerName(id),
+                  rosterId: rId,
+                }))
+              : [];
+
+            const droppedPlayers = txn.drops
+              ? Object.entries(txn.drops).map(([id, rId]) => ({
+                  name: getPlayerName(id),
+                  rosterId: rId,
+                }))
+              : [];
+
+            const draftPicks = txn.draft_picks.map((pick) => ({
+              label: `${pick.season} Rd ${pick.round}`,
+              rosterId: pick.owner_id,
+            }));
+
+            const waiverBid = txn.settings?.waiver_bid ?? null;
+
+            const tradeSides: TransactionDisplay["tradeSides"] = [];
+            if (txn.type === "trade") {
+              for (const rId of txn.roster_ids) {
+                const name = getManagerName(rId);
+                const playerAdds = addedPlayers
+                  .filter((p) => p.rosterId === rId)
+                  .map((p) => p.name);
+                const pickAdds = draftPicks
+                  .filter((p) => p.rosterId === rId)
+                  .map((p) => p.label + " Pick");
+                tradeSides.push({
+                  name,
+                  receives: { players: playerAdds, picks: pickAdds },
+                });
+              }
+            }
+
+            return {
+              transaction_id: txn.transaction_id,
+              type: txn.type,
+              status_updated: txn.status_updated,
+              managerName,
+              managerNames,
+              addedPlayers,
+              droppedPlayers,
+              draftPicks,
+              waiverBid,
+              tradeSides,
+            };
+          }
+        );
+
+        setTransactions(displayTxns);
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const filteredTxns =
+    filter === "all"
+      ? transactions
+      : transactions.filter((t) => t.type === filter);
+
+  const visibleTxns = filteredTxns.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredTxns.length;
+
+  const typeCounts = {
+    all: transactions.length,
+    trade: transactions.filter((t) => t.type === "trade").length,
+    waiver: transactions.filter((t) => t.type === "waiver").length,
+    free_agent: transactions.filter((t) => t.type === "free_agent").length,
+  };
+
+  return (
+    <div>
+      <PageHeader
+        title="Activity"
+        subtitle={
+          season
+            ? `${season} Season — ${transactions.length} transactions`
+            : "Loading..."
+        }
+      />
+
+      {/* Filter tabs */}
+      <div className="mb-6 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {(
+          [
+            { key: "all", label: "All" },
+            { key: "trade", label: "Trades" },
+            { key: "waiver", label: "Waivers" },
+            { key: "free_agent", label: "Free Agents" },
+          ] as const
+        ).map((f) => (
+          <button
+            key={f.key}
+            onClick={() => {
+              setFilter(f.key);
+              setVisibleCount(INITIAL_LIMIT);
+            }}
+            className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+              filter === f.key
+                ? "bg-navy text-white shadow-lg shadow-navy/20"
+                : "bg-white text-text-muted ring-1 ring-border hover:ring-steel hover:text-text-primary"
+            }`}
+          >
+            {f.label}
+            <span className="ml-1.5 opacity-60">{typeCounts[f.key]}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Transaction list */}
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i}>
+              <div className="h-16 animate-pulse rounded-xl bg-surface" />
+            </Card>
+          ))}
+        </div>
+      ) : filteredTxns.length === 0 ? (
+        <Card>
+          <p className="py-12 text-center text-sm text-text-muted">
+            No transactions found
+          </p>
+        </Card>
+      ) : (
+        <Card padding="none">
+          <div className="divide-y divide-border-light">
+            {visibleTxns.map((txn) => (
+              <TransactionRow key={txn.transaction_id} txn={txn} />
+            ))}
+          </div>
+
+          {/* See more button */}
+          {hasMore && (
+            <div className="border-t border-border-light px-5 py-4 text-center">
+              <button
+                onClick={() => setVisibleCount((c) => c + LOAD_MORE_COUNT)}
+                className="rounded-xl bg-surface px-6 py-2.5 text-xs font-bold text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
+              >
+                Show More ({filteredTxns.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function TransactionRow({ txn }: { txn: TransactionDisplay }) {
+  const typeConfig = {
+    trade: {
+      label: "Trade",
+      color: "bg-indigo-50 text-indigo-700",
+      dot: "bg-indigo-500",
+    },
+    waiver: {
+      label: "Waiver",
+      color: "bg-amber-50 text-amber-700",
+      dot: "bg-amber-500",
+    },
+    free_agent: {
+      label: "FA",
+      color: "bg-emerald-50 text-emerald-700",
+      dot: "bg-emerald-500",
+    },
+    commissioner: {
+      label: "Commish",
+      color: "bg-gray-50 text-gray-700",
+      dot: "bg-gray-500",
+    },
+  };
+
+  const config = typeConfig[txn.type] || typeConfig.commissioner;
+
+  if (txn.type === "trade") {
+    return (
+      <div className="px-5 py-4">
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${config.color}`}
+          >
+            {config.label}
+          </span>
+          <span className="text-xs font-medium text-text-secondary">
+            {txn.managerNames.join(" ↔ ")}
+          </span>
+          <span className="ml-auto text-[10px] text-text-muted">
+            {formatDistanceToNow(txn.status_updated, { addSuffix: true })}
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {txn.tradeSides.map((side) => (
+            <div key={side.name} className="rounded-lg bg-surface/70 p-3">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                {side.name} receives
+              </p>
+              <div className="space-y-0.5 text-xs">
+                {side.receives.players.map((p, i) => (
+                  <p key={i} className="font-medium text-emerald-600">
+                    + {p}
+                  </p>
+                ))}
+                {side.receives.picks.map((p, i) => (
+                  <p key={i} className="font-medium text-steel">
+                    + {p}
+                  </p>
+                ))}
+                {side.receives.players.length === 0 &&
+                  side.receives.picks.length === 0 && (
+                    <p className="text-text-muted">(nothing listed)</p>
+                  )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-3 px-5 py-3.5">
+      <span
+        className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${config.color}`}
+      >
+        {config.label}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-text-primary">
+          {txn.managerName}
+        </p>
+        <div className="mt-0.5 text-xs">
+          {txn.addedPlayers.map((p, i) => (
+            <span key={`add-${i}`} className="font-medium text-emerald-600">
+              +{p.name}{" "}
+            </span>
+          ))}
+          {txn.droppedPlayers.map((p, i) => (
+            <span key={`drop-${i}`} className="font-medium text-red-400">
+              -{p.name}{" "}
+            </span>
+          ))}
+          {txn.waiverBid != null && txn.waiverBid > 0 && (
+            <span className="text-text-muted">(${txn.waiverBid} FAAB)</span>
+          )}
+        </div>
+      </div>
+      <span className="shrink-0 text-[10px] text-text-muted">
+        {formatDistanceToNow(txn.status_updated, { addSuffix: true })}
+      </span>
+    </div>
+  );
+}

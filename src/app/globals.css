@@ -1,26 +1,137 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-navy: #1a2744;
+  --color-navy-light: #243352;
+  --color-navy-dark: #111b2e;
+  --color-steel: #4a7fb5;
+  --color-steel-light: #6a9fd5;
+  --color-surface: #f8f9fb;
+  --color-surface-hover: #f0f2f5;
+  --color-surface-alt: #eef1f6;
+  --color-border: #e2e5eb;
+  --color-border-light: #eef0f4;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-accent: #6366f1;
+
+  --color-pos-qb: #ef4444;
+  --color-pos-rb: #22c55e;
+  --color-pos-wr: #3b82f6;
+  --color-pos-te: #f97316;
+  --color-pos-k: #8b5cf6;
+  --color-pos-def: #64748b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #f8f9fb;
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Glass effect utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.glass-dark {
+  background: rgba(26, 39, 68, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Gradient backgrounds */
+.gradient-hero {
+  background: linear-gradient(135deg, #1a2744 0%, #2a3f6b 50%, #1a2744 100%);
+}
+
+.gradient-hero-subtle {
+  background: linear-gradient(180deg, #1a2744 0%, #243352 100%);
+}
+
+.gradient-mesh {
+  background:
+    radial-gradient(at 20% 30%, rgba(74, 127, 181, 0.15) 0%, transparent 50%),
+    radial-gradient(at 80% 70%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(26, 39, 68, 0.03) 0%, transparent 70%);
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26, 39, 68, 0.08);
+}
+
+/* Subtle shine animation on glass */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fadeUp 0.5s ease-out forwards;
+}
+
+/* Staggered children */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeUp 0.4s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 480ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 540ms; }
+
+/* Scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Glow effect for hero elements */
+.glow {
+  filter: drop-shadow(0 0 20px rgba(74, 127, 181, 0.3));
+}
+
+/* Number styling for stats */
+.tabular { font-variant-numeric: tabular-nums; }
