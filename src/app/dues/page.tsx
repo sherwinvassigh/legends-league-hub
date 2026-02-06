@@ -1,14 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Card, PageHeader } from "@/components/ui";
 import { DUES_DATA } from "@/lib/config/dues";
 import { HiCheckCircle, HiXCircle, HiClock } from "react-icons/hi2";
+
+interface SleeperUserInfo {
+  display_name: string;
+  username: string;
+  avatar: string | null;
+  user_id: string;
+}
+
+function getSleeperAvatarUrl(avatarId: string): string {
+  return `https://sleepercdn.com/avatars/thumbs/${avatarId}`;
+}
 
 export default function DuesPage() {
   const [selectedSeason, setSelectedSeason] = useState(
     DUES_DATA[DUES_DATA.length - 1]?.season || ""
   );
+  const [avatarMap, setAvatarMap] = useState<
+    Map<string, string | null>
+  >(new Map());
+
+  // Fetch Sleeper users to get avatars
+  useEffect(() => {
+    async function fetchAvatars() {
+      try {
+        // Walk the league chain to find the most recent active league
+        let leagueId = "1313306806897881088";
+        const leagueRes = await fetch(
+          `https://api.sleeper.app/v1/league/${leagueId}`
+        );
+        const league = await leagueRes.json();
+        if (league.status === "pre_draft" && league.previous_league_id) {
+          leagueId = league.previous_league_id;
+        }
+
+        const usersRes = await fetch(
+          `https://api.sleeper.app/v1/league/${leagueId}/users`
+        );
+        const users: SleeperUserInfo[] = await usersRes.json();
+
+        const map = new Map<string, string | null>();
+        for (const user of users) {
+          // Map by both display_name and username for flexible matching
+          if (user.display_name) {
+            map.set(user.display_name.toLowerCase(), user.avatar);
+          }
+          if (user.username) {
+            map.set(user.username.toLowerCase(), user.avatar);
+          }
+        }
+        setAvatarMap(map);
+      } catch (err) {
+        console.error("Error fetching Sleeper avatars:", err);
+      }
+    }
+
+    fetchAvatars();
+  }, []);
 
   const seasonData = DUES_DATA.find((d) => d.season === selectedSeason);
   if (!seasonData) {
@@ -146,88 +199,99 @@ export default function DuesPage() {
         </div>
 
         <div className="divide-y divide-border-light">
-          {seasonData.managers.map((manager) => (
-            <div
-              key={manager.displayName}
-              className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:gap-0"
-            >
-              {/* Manager name */}
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <div
-                  className={`h-8 w-8 shrink-0 rounded-full ${
-                    manager.paid
-                      ? "bg-emerald-50"
-                      : "bg-amber-50"
-                  } flex items-center justify-center`}
-                >
-                  <span className="text-xs font-bold text-text-muted">
-                    {manager.displayName.charAt(0).toUpperCase()}
+          {seasonData.managers.map((manager) => {
+            const avatarId = avatarMap.get(manager.displayName.toLowerCase());
+            return (
+              <div
+                key={manager.displayName}
+                className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:gap-0"
+              >
+                {/* Manager name + avatar */}
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  {avatarId ? (
+                    <Image
+                      src={getSleeperAvatarUrl(avatarId)}
+                      alt={manager.displayName}
+                      width={32}
+                      height={32}
+                      className="shrink-0 rounded-full ring-2 ring-white"
+                    />
+                  ) : (
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-2 ring-white ${
+                        manager.paid ? "bg-emerald-50" : "bg-amber-50"
+                      }`}
+                    >
+                      <span className="text-xs font-bold text-text-muted">
+                        {manager.displayName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <span className="truncate text-sm font-semibold text-text-primary">
+                    {manager.displayName}
                   </span>
                 </div>
-                <span className="truncate text-sm font-semibold text-text-primary">
-                  {manager.displayName}
-                </span>
-              </div>
 
-              {/* Entry Fee status */}
-              <div className="flex items-center gap-1 sm:w-24 sm:justify-center">
-                {manager.paid ? (
-                  <HiCheckCircle className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <HiXCircle className="h-4 w-4 text-red-400" />
-                )}
-                <span
-                  className={`text-xs font-semibold ${
-                    manager.paid ? "text-emerald-600" : "text-red-500"
-                  }`}
-                >
-                  {manager.paid ? "Paid" : "Unpaid"}
-                </span>
-              </div>
-
-              {/* Deposit status */}
-              <div className="flex items-center gap-1 sm:w-24 sm:justify-center">
-                {manager.depositPaid ? (
-                  <HiCheckCircle className="h-4 w-4 text-emerald-500" />
-                ) : (
-                  <HiClock className="h-4 w-4 text-amber-500" />
-                )}
-                <span
-                  className={`text-xs font-medium ${
-                    manager.depositPaid
-                      ? "text-emerald-600"
-                      : "text-amber-600"
-                  }`}
-                >
-                  {manager.depositPaid ? "Yes" : "Pending"}
-                </span>
-              </div>
-
-              {/* Date paid */}
-              <div className="sm:w-32 sm:text-center">
-                <span className="text-xs text-text-muted">
-                  {manager.paidDate
-                    ? new Date(manager.paidDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : "—"}
-                </span>
-              </div>
-
-              {/* Notes */}
-              <div className="sm:w-24 sm:text-center">
-                {manager.notes ? (
-                  <span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                    {manager.notes}
+                {/* Entry Fee status */}
+                <div className="flex items-center gap-1 sm:w-24 sm:justify-center">
+                  {manager.paid ? (
+                    <HiCheckCircle className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <HiXCircle className="h-4 w-4 text-red-400" />
+                  )}
+                  <span
+                    className={`text-xs font-semibold ${
+                      manager.paid ? "text-emerald-600" : "text-red-500"
+                    }`}
+                  >
+                    {manager.paid ? "Paid" : "Unpaid"}
                   </span>
-                ) : (
-                  <span className="text-[10px] text-text-muted">—</span>
-                )}
+                </div>
+
+                {/* Deposit status */}
+                <div className="flex items-center gap-1 sm:w-24 sm:justify-center">
+                  {manager.depositPaid ? (
+                    <HiCheckCircle className="h-4 w-4 text-emerald-500" />
+                  ) : (
+                    <HiClock className="h-4 w-4 text-amber-500" />
+                  )}
+                  <span
+                    className={`text-xs font-medium ${
+                      manager.depositPaid
+                        ? "text-emerald-600"
+                        : "text-amber-600"
+                    }`}
+                  >
+                    {manager.depositPaid ? "Yes" : "Pending"}
+                  </span>
+                </div>
+
+                {/* Date paid */}
+                <div className="sm:w-32 sm:text-center">
+                  <span className="text-xs text-text-muted">
+                    {manager.paidDate
+                      ? new Date(manager.paidDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </span>
+                </div>
+
+                {/* Notes */}
+                <div className="sm:w-24 sm:text-center">
+                  {manager.notes ? (
+                    <span className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                      {manager.notes}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-text-muted">—</span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

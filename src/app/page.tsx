@@ -9,7 +9,7 @@ import {
   getWinnersBracket,
 } from "@/lib/sleeper";
 import { getAllTransactions } from "@/lib/sleeper/transactions";
-import { getPlayers, getPlayerName } from "@/lib/sleeper/players";
+import { getPlayers, getPlayerInfo } from "@/lib/sleeper/players";
 import { buildStandings, getSleeperAvatarUrl } from "@/lib/utils/standings";
 import { getChampionRosterId, getRunnerUpRosterId } from "@/lib/utils/brackets";
 import { Card } from "@/components/ui";
@@ -55,7 +55,6 @@ export default async function HomePage() {
           standings.find((s) => s.rosterId === runnerUpRosterId) || null;
       }
     } catch {
-      // Fall back to top of standings if bracket fetch fails
       championEntry = standings[0] || null;
     }
   }
@@ -91,66 +90,79 @@ export default async function HomePage() {
           ? `${currentLeague.season} Season — Week ${nflState.week}`
           : `${currentLeague.season} Season Complete`;
 
-  // Stats
   const totalPF = standings.reduce((sum, s) => sum + s.pointsFor, 0);
 
   return (
     <div className="space-y-8 sm:space-y-12">
-      {/* ─── Hero Section ─── */}
+      {/* ─── Hero Section with Banner ─── */}
       <section className="-mx-4 -mt-6 sm:-mx-6 lg:-mx-8">
-        <div className="gradient-hero-subtle relative overflow-hidden px-4 pb-10 pt-12 sm:px-6 sm:pb-14 sm:pt-16 lg:px-8">
-          {/* Subtle grid pattern */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
+        <div className="relative overflow-hidden">
+          {/* Banner background image */}
+          <div className="absolute inset-0">
+            <Image
+              src="/logos/banner.JPG"
+              alt="L.E.G.E.N.D.S. Banner"
+              fill
+              className="object-cover object-center"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-navy-dark/80 via-navy/70 to-navy-dark/90" />
+          </div>
 
-          <div className="relative mx-auto max-w-7xl">
-            <div className="flex flex-col items-center text-center">
-              <div className="glow mb-5">
-                <Image
-                  src="/logos/icon.JPG"
-                  alt={LEAGUE_CONFIG.name}
-                  width={88}
-                  height={88}
-                  className="rounded-2xl"
-                  priority
-                />
-              </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
-                {LEAGUE_CONFIG.name}
-              </h1>
-              <p className="mt-2 max-w-md text-sm font-medium text-white/50">
-                {LEAGUE_CONFIG.fullName}
-              </p>
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold text-white/70 backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                {seasonStatus}
-              </div>
+          <div className="relative px-4 pb-10 pt-12 sm:px-6 sm:pb-14 sm:pt-16 lg:px-8">
+            {/* Subtle grid pattern */}
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.03]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)",
+                backgroundSize: "40px 40px",
+              }}
+            />
 
-              {/* League stat pills */}
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                {[
-                  { label: "Teams", value: "10" },
-                  { label: "Format", value: "Superflex" },
-                  { label: "Scoring", value: "Half PPR" },
-                  { label: "TE Prem", value: "1.0 PPR" },
-                  { label: "Seasons", value: "3" },
-                ].map(({ label, value }) => (
-                  <div
-                    key={label}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-center backdrop-blur-sm"
-                  >
-                    <p className="text-base font-bold text-white">{value}</p>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">
-                      {label}
-                    </p>
-                  </div>
-                ))}
+            <div className="relative mx-auto max-w-7xl">
+              <div className="flex flex-col items-center text-center">
+                <div className="glow mb-5">
+                  <Image
+                    src="/logos/icon.JPG"
+                    alt={LEAGUE_CONFIG.name}
+                    width={88}
+                    height={88}
+                    className="rounded-2xl ring-2 ring-white/20"
+                    priority
+                  />
+                </div>
+                <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
+                  {LEAGUE_CONFIG.name}
+                </h1>
+                <p className="mt-2 max-w-md text-sm font-medium text-white/50">
+                  {LEAGUE_CONFIG.fullName}
+                </p>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold text-white/70 backdrop-blur-sm">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                  {seasonStatus}
+                </div>
+
+                {/* League stat pills */}
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                  {[
+                    { label: "Teams", value: "10" },
+                    { label: "Format", value: "Superflex" },
+                    { label: "Scoring", value: "Half PPR" },
+                    { label: "TE Prem", value: "1.0 PPR" },
+                    { label: "Seasons", value: "3" },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-center backdrop-blur-sm"
+                    >
+                      <p className="text-base font-bold text-white">{value}</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">
+                        {label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -180,7 +192,6 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            {/* Standings rows */}
             <div className="stagger-children">
               {standings.map((entry) => {
                 const pctBar =
@@ -263,7 +274,7 @@ export default async function HomePage() {
 
         {/* Right column: Activity + Champion */}
         <div className="space-y-6">
-          {/* Season champion callout — uses actual playoff bracket winner */}
+          {/* Season champion callout */}
           {dataLeague.status === "complete" && championEntry && (
             <Card className="relative overflow-hidden border-amber-200/50 bg-gradient-to-br from-amber-50 to-white">
               <div className="absolute right-3 top-3 text-3xl opacity-20">
@@ -307,7 +318,7 @@ export default async function HomePage() {
             </Card>
           )}
 
-          {/* Recent activity */}
+          {/* Recent activity — consistent with activity page style */}
           <Card padding="none">
             <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
               <h2 className="text-base font-bold text-text-primary">
@@ -330,16 +341,6 @@ export default async function HomePage() {
                   const roster = rosterToUser.get(txn.roster_ids[0]);
                   const managerName =
                     roster?.display_name || roster?.username || "Unknown";
-                  const addedPlayers = txn.adds
-                    ? Object.keys(txn.adds).map((id) =>
-                        getPlayerName(players, id)
-                      )
-                    : [];
-                  const droppedPlayers = txn.drops
-                    ? Object.keys(txn.drops).map((id) =>
-                        getPlayerName(players, id)
-                      )
-                    : [];
 
                   const typeLabel =
                     txn.type === "trade"
@@ -352,57 +353,82 @@ export default async function HomePage() {
 
                   const typeColor =
                     txn.type === "trade"
-                      ? "bg-indigo-500"
+                      ? "bg-indigo-50 text-indigo-700"
                       : txn.type === "waiver"
-                        ? "bg-amber-500"
-                        : "bg-emerald-500";
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700";
+
+                  const addedPlayers = txn.adds
+                    ? Object.keys(txn.adds).map((id) => {
+                        const p = getPlayerInfo(players, id);
+                        return {
+                          name: p ? `${p.first_name} ${p.last_name}` : id,
+                          position: p?.position || "?",
+                          team: p?.team || "FA",
+                        };
+                      })
+                    : [];
+                  const droppedPlayers = txn.drops
+                    ? Object.keys(txn.drops).map((id) => {
+                        const p = getPlayerInfo(players, id);
+                        return {
+                          name: p ? `${p.first_name} ${p.last_name}` : id,
+                          position: p?.position || "?",
+                          team: p?.team || "FA",
+                        };
+                      })
+                    : [];
+
+                  const POSITION_COLORS: Record<string, string> = {
+                    QB: "text-pos-qb", RB: "text-pos-rb", WR: "text-pos-wr",
+                    TE: "text-pos-te", K: "text-pos-k", DEF: "text-pos-def",
+                  };
 
                   return (
                     <div
                       key={txn.transaction_id}
-                      className="px-5 py-3"
+                      className="flex items-start gap-3 px-5 py-3.5"
                     >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${typeColor}`}
-                        />
-                        <span className="text-xs font-semibold text-text-primary">
+                      <span
+                        className={`mt-0.5 inline-flex w-14 shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${typeColor}`}
+                      >
+                        {typeLabel}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-text-primary">
                           {managerName}
-                        </span>
-                        <span className="rounded bg-surface px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted">
-                          {typeLabel}
-                        </span>
-                        <span className="ml-auto text-[10px] text-text-muted">
-                          {formatDistanceToNow(txn.status_updated, {
-                            addSuffix: true,
-                          })}
-                        </span>
+                        </p>
+                        <div className="mt-1 space-y-0.5 text-xs">
+                          {addedPlayers.map((p, i) => (
+                            <div key={`add-${i}`} className="inline-flex items-center gap-1 mr-2">
+                              <span className="font-semibold text-emerald-600">+</span>
+                              <span className={`text-[9px] font-bold ${POSITION_COLORS[p.position] || "text-text-muted"}`}>{p.position}</span>
+                              <span className="font-medium text-emerald-600">{p.name}</span>
+                              <span className="text-text-muted/60">{p.team}</span>
+                            </div>
+                          ))}
+                          {droppedPlayers.map((p, i) => (
+                            <div key={`drop-${i}`} className="inline-flex items-center gap-1 mr-2">
+                              <span className="font-semibold text-red-400">-</span>
+                              <span className={`text-[9px] font-bold ${POSITION_COLORS[p.position] || "text-text-muted"}`}>{p.position}</span>
+                              <span className="font-medium text-red-400">{p.name}</span>
+                              <span className="text-text-muted/60">{p.team}</span>
+                            </div>
+                          ))}
+                          {txn.type === "trade" &&
+                            txn.draft_picks.length > 0 && (
+                              <p className="text-text-muted">
+                                +{txn.draft_picks.length} pick
+                                {txn.draft_picks.length > 1 ? "s" : ""}
+                              </p>
+                            )}
+                        </div>
                       </div>
-                      <div className="mt-1 pl-3.5 text-xs">
-                        {addedPlayers.length > 0 && (
-                          <span className="font-medium text-emerald-600">
-                            +{addedPlayers.join(", ")}
-                          </span>
-                        )}
-                        {addedPlayers.length > 0 &&
-                          droppedPlayers.length > 0 && (
-                            <span className="mx-1.5 text-text-muted">
-                              /
-                            </span>
-                          )}
-                        {droppedPlayers.length > 0 && (
-                          <span className="font-medium text-red-400">
-                            -{droppedPlayers.join(", ")}
-                          </span>
-                        )}
-                        {txn.type === "trade" &&
-                          txn.draft_picks.length > 0 && (
-                            <span className="ml-1 text-text-muted">
-                              +{txn.draft_picks.length} pick
-                              {txn.draft_picks.length > 1 ? "s" : ""}
-                            </span>
-                          )}
-                      </div>
+                      <span className="shrink-0 text-[10px] text-text-muted">
+                        {formatDistanceToNow(txn.status_updated, {
+                          addSuffix: true,
+                        })}
+                      </span>
                     </div>
                   );
                 })

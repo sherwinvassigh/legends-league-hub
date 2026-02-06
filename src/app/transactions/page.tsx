@@ -4,24 +4,53 @@ import { useState, useEffect } from "react";
 import { Card, PageHeader } from "@/components/ui";
 import { formatDistanceToNow } from "date-fns";
 
+interface PlayerInfo {
+  name: string;
+  position: string;
+  team: string;
+  rosterId: number;
+}
+
 interface TransactionDisplay {
   transaction_id: string;
   type: "trade" | "waiver" | "free_agent" | "commissioner";
   status_updated: number;
   managerName: string;
   managerNames: string[];
-  addedPlayers: { name: string; rosterId: number }[];
-  droppedPlayers: { name: string; rosterId: number }[];
+  addedPlayers: PlayerInfo[];
+  droppedPlayers: PlayerInfo[];
   draftPicks: { label: string; rosterId: number }[];
   waiverBid: number | null;
   tradeSides: {
     name: string;
-    receives: { players: string[]; picks: string[] };
+    receives: { players: PlayerInfo[]; picks: string[] };
   }[];
 }
 
 const INITIAL_LIMIT = 25;
 const LOAD_MORE_COUNT = 25;
+
+const POSITION_COLORS: Record<string, string> = {
+  QB: "text-pos-qb",
+  RB: "text-pos-rb",
+  WR: "text-pos-wr",
+  TE: "text-pos-te",
+  K: "text-pos-k",
+  DEF: "text-pos-def",
+};
+
+function PlayerTag({ player, prefix }: { player: PlayerInfo; prefix: "+" | "-" }) {
+  const color = prefix === "+" ? "text-emerald-600" : "text-red-400";
+  const posColor = POSITION_COLORS[player.position] || "text-text-muted";
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className={`font-semibold ${color}`}>{prefix}</span>
+      <span className={`text-[9px] font-bold ${posColor}`}>{player.position}</span>
+      <span className={`font-medium ${color}`}>{player.name}</span>
+      <span className="text-text-muted/60">{player.team}</span>
+    </span>
+  );
+}
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<TransactionDisplay[]>([]);
@@ -81,10 +110,14 @@ export default function TransactionsPage() {
           ])
         );
 
-        function getPlayerName(id: string): string {
+        function getPlayerData(id: string): { name: string; position: string; team: string } {
           const p = players[id];
-          if (!p) return `Player ${id}`;
-          return `${p.first_name} ${p.last_name}`;
+          if (!p) return { name: `Player ${id}`, position: "?", team: "" };
+          return {
+            name: `${p.first_name} ${p.last_name}`,
+            position: p.position || "?",
+            team: p.team || "FA",
+          };
         }
 
         function getManagerName(rosterId: number): string {
@@ -94,7 +127,6 @@ export default function TransactionsPage() {
           return user?.display_name || user?.username || "Unknown";
         }
 
-        // Fetch all transactions from all weeks
         const totalWeeks = 18;
         const weekPromises = Array.from({ length: totalWeeks }, (_, i) =>
           fetch(
@@ -132,18 +164,18 @@ export default function TransactionsPage() {
             const managerName = getManagerName(txn.roster_ids[0]);
             const managerNames = txn.roster_ids.map(getManagerName);
 
-            const addedPlayers = txn.adds
-              ? Object.entries(txn.adds).map(([id, rId]) => ({
-                  name: getPlayerName(id),
-                  rosterId: rId,
-                }))
+            const addedPlayers: PlayerInfo[] = txn.adds
+              ? Object.entries(txn.adds).map(([id, rId]) => {
+                  const data = getPlayerData(id);
+                  return { ...data, rosterId: rId };
+                })
               : [];
 
-            const droppedPlayers = txn.drops
-              ? Object.entries(txn.drops).map(([id, rId]) => ({
-                  name: getPlayerName(id),
-                  rosterId: rId,
-                }))
+            const droppedPlayers: PlayerInfo[] = txn.drops
+              ? Object.entries(txn.drops).map(([id, rId]) => {
+                  const data = getPlayerData(id);
+                  return { ...data, rosterId: rId };
+                })
               : [];
 
             const draftPicks = txn.draft_picks.map((pick) => ({
@@ -157,9 +189,7 @@ export default function TransactionsPage() {
             if (txn.type === "trade") {
               for (const rId of txn.roster_ids) {
                 const name = getManagerName(rId);
-                const playerAdds = addedPlayers
-                  .filter((p) => p.rosterId === rId)
-                  .map((p) => p.name);
+                const playerAdds = addedPlayers.filter((p) => p.rosterId === rId);
                 const pickAdds = draftPicks
                   .filter((p) => p.rosterId === rId)
                   .map((p) => p.label + " Pick");
@@ -273,7 +303,6 @@ export default function TransactionsPage() {
             ))}
           </div>
 
-          {/* See more button */}
           {hasMore && (
             <div className="border-t border-border-light px-5 py-4 text-center">
               <button
@@ -292,26 +321,10 @@ export default function TransactionsPage() {
 
 function TransactionRow({ txn }: { txn: TransactionDisplay }) {
   const typeConfig = {
-    trade: {
-      label: "Trade",
-      color: "bg-indigo-50 text-indigo-700",
-      dot: "bg-indigo-500",
-    },
-    waiver: {
-      label: "Waiver",
-      color: "bg-amber-50 text-amber-700",
-      dot: "bg-amber-500",
-    },
-    free_agent: {
-      label: "FA",
-      color: "bg-emerald-50 text-emerald-700",
-      dot: "bg-emerald-500",
-    },
-    commissioner: {
-      label: "Commish",
-      color: "bg-gray-50 text-gray-700",
-      dot: "bg-gray-500",
-    },
+    trade: { label: "Trade", color: "bg-indigo-50 text-indigo-700" },
+    waiver: { label: "Waiver", color: "bg-amber-50 text-amber-700" },
+    free_agent: { label: "FA", color: "bg-emerald-50 text-emerald-700" },
+    commissioner: { label: "Commish", color: "bg-gray-50 text-gray-700" },
   };
 
   const config = typeConfig[txn.type] || typeConfig.commissioner;
@@ -320,10 +333,8 @@ function TransactionRow({ txn }: { txn: TransactionDisplay }) {
     return (
       <div className="px-5 py-4">
         <div className="flex items-center gap-2">
-          <span
-            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${config.color}`}
-          >
-            {config.label}
+          <span className="inline-flex w-14 shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-indigo-50 text-indigo-700">
+            Trade
           </span>
           <span className="text-xs font-medium text-text-secondary">
             {txn.managerNames.join(" ↔ ")}
@@ -338,11 +349,11 @@ function TransactionRow({ txn }: { txn: TransactionDisplay }) {
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-text-muted">
                 {side.name} receives
               </p>
-              <div className="space-y-0.5 text-xs">
+              <div className="space-y-1 text-xs">
                 {side.receives.players.map((p, i) => (
-                  <p key={i} className="font-medium text-emerald-600">
-                    + {p}
-                  </p>
+                  <div key={i}>
+                    <PlayerTag player={p} prefix="+" />
+                  </div>
                 ))}
                 {side.receives.picks.map((p, i) => (
                   <p key={i} className="font-medium text-steel">
@@ -361,10 +372,11 @@ function TransactionRow({ txn }: { txn: TransactionDisplay }) {
     );
   }
 
+  // Waiver / FA / Commissioner
   return (
     <div className="flex items-start gap-3 px-5 py-3.5">
       <span
-        className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${config.color}`}
+        className={`mt-0.5 inline-flex w-14 shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${config.color}`}
       >
         {config.label}
       </span>
@@ -372,19 +384,19 @@ function TransactionRow({ txn }: { txn: TransactionDisplay }) {
         <p className="text-sm font-semibold text-text-primary">
           {txn.managerName}
         </p>
-        <div className="mt-0.5 text-xs">
+        <div className="mt-1 space-y-0.5 text-xs">
           {txn.addedPlayers.map((p, i) => (
-            <span key={`add-${i}`} className="font-medium text-emerald-600">
-              +{p.name}{" "}
-            </span>
+            <div key={`add-${i}`}>
+              <PlayerTag player={p} prefix="+" />
+            </div>
           ))}
           {txn.droppedPlayers.map((p, i) => (
-            <span key={`drop-${i}`} className="font-medium text-red-400">
-              -{p.name}{" "}
-            </span>
+            <div key={`drop-${i}`}>
+              <PlayerTag player={p} prefix="-" />
+            </div>
           ))}
           {txn.waiverBid != null && txn.waiverBid > 0 && (
-            <span className="text-text-muted">(${txn.waiverBid} FAAB)</span>
+            <p className="text-text-muted">${txn.waiverBid} FAAB</p>
           )}
         </div>
       </div>

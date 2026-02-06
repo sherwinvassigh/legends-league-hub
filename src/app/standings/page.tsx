@@ -77,6 +77,79 @@ export default async function StandingsPage() {
     <div>
       <PageHeader title="Standings" subtitle={`${league.season} Season`} />
 
+      {/* ─── Playoff Bracket (shown first when complete) ─── */}
+      {isComplete && winnersDisplay.length > 0 && (
+        <>
+          <div className="mb-6">
+            <h2 className="text-xl font-extrabold tracking-tight text-text-primary">
+              Playoff Bracket
+            </h2>
+            <p className="mt-1 text-sm text-text-muted">
+              {league.season} Postseason Results
+            </p>
+            <div className="mt-3 h-px bg-gradient-to-r from-border via-border to-transparent" />
+          </div>
+
+          {/* Winners Bracket */}
+          <div className="mb-8">
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-text-muted">
+              Winners Bracket
+            </h3>
+            <div className="space-y-4">
+              {winnersDisplay.map((round) => (
+                <div key={round.round}>
+                  <p className="mb-2 text-xs font-bold text-text-secondary">
+                    {round.label}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {round.matchups.map((matchup) => (
+                      <BracketMatchupCard
+                        key={matchup.matchupId}
+                        matchup={matchup}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Losers Bracket */}
+          {losersDisplay.length > 0 && (
+            <div className="mb-10">
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-text-muted">
+                Consolation Bracket
+              </h3>
+              <div className="space-y-4">
+                {losersDisplay.map((round) => (
+                  <div key={round.round}>
+                    <p className="mb-2 text-xs font-bold text-text-secondary">
+                      {round.label}
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {round.matchups.map((matchup) => (
+                        <BracketMatchupCard
+                          key={matchup.matchupId}
+                          matchup={matchup}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ─── Regular Season Standings ─── */}
+      <div className="mb-6">
+        <h2 className="text-xl font-extrabold tracking-tight text-text-primary">
+          Regular Season Standings
+        </h2>
+        <div className="mt-3 h-px bg-gradient-to-r from-border via-border to-transparent" />
+      </div>
+
       {/* Legend */}
       <div className="mb-6 flex flex-wrap items-center gap-3 text-xs font-medium text-text-muted">
         <span className="flex items-center gap-1.5">
@@ -277,70 +350,6 @@ export default async function StandingsPage() {
         })}
       </div>
 
-      {/* ─── Playoff Bracket ─── */}
-      {isComplete && winnersDisplay.length > 0 && (
-        <>
-          <div className="mt-12 mb-6">
-            <h2 className="text-xl font-extrabold tracking-tight text-text-primary">
-              Playoff Bracket
-            </h2>
-            <p className="mt-1 text-sm text-text-muted">
-              {league.season} Postseason Results
-            </p>
-            <div className="mt-3 h-px bg-gradient-to-r from-border via-border to-transparent" />
-          </div>
-
-          {/* Winners Bracket */}
-          <div className="mb-8">
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-text-muted">
-              Winners Bracket
-            </h3>
-            <div className="space-y-4">
-              {winnersDisplay.map((round) => (
-                <div key={round.round}>
-                  <p className="mb-2 text-xs font-bold text-text-secondary">
-                    {round.label}
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {round.matchups.map((matchup) => (
-                      <BracketMatchupCard
-                        key={matchup.matchupId}
-                        matchup={matchup}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Losers Bracket */}
-          {losersDisplay.length > 0 && (
-            <div className="mb-8">
-              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-text-muted">
-                Consolation Bracket
-              </h3>
-              <div className="space-y-4">
-                {losersDisplay.map((round) => (
-                  <div key={round.round}>
-                    <p className="mb-2 text-xs font-bold text-text-secondary">
-                      {round.label}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {round.matchups.map((matchup) => (
-                        <BracketMatchupCard
-                          key={matchup.matchupId}
-                          matchup={matchup}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }
