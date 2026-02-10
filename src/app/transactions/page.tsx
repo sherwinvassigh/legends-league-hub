@@ -60,6 +60,7 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<
     "all" | "trade" | "waiver" | "free_agent"
   >("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     async function fetchData() {
@@ -226,10 +227,24 @@ export default function TransactionsPage() {
     fetchData();
   }, []);
 
-  const filteredTxns =
-    filter === "all"
-      ? transactions
-      : transactions.filter((t) => t.type === filter);
+  const searchLower = searchQuery.toLowerCase().trim();
+
+  const filteredTxns = transactions.filter((t) => {
+    // Type filter
+    if (filter !== "all" && t.type !== filter) return false;
+    // Search filter
+    if (searchLower) {
+      const allPlayers = [...t.addedPlayers, ...t.droppedPlayers];
+      const matchesPlayer = allPlayers.some((p) =>
+        p.name.toLowerCase().includes(searchLower)
+      );
+      const matchesManager = t.managerNames.some((n) =>
+        n.toLowerCase().includes(searchLower)
+      );
+      if (!matchesPlayer && !matchesManager) return false;
+    }
+    return true;
+  });
 
   const visibleTxns = filteredTxns.slice(0, visibleCount);
   const hasMore = visibleCount < filteredTxns.length;
@@ -251,6 +266,38 @@ export default function TransactionsPage() {
             : "Loading..."
         }
       />
+
+      {/* Search */}
+      <div className="mb-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search players or managers..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setVisibleCount(INITIAL_LIMIT);
+            }}
+            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 pl-9 text-sm text-text-primary placeholder:text-text-muted/50 focus:border-steel focus:outline-none focus:ring-1 focus:ring-steel"
+          />
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-text-muted hover:text-text-primary"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="mt-2 text-xs text-text-muted">
+            Showing {filteredTxns.length} transaction{filteredTxns.length !== 1 ? "s" : ""} matching &ldquo;{searchQuery}&rdquo;
+          </p>
+        )}
+      </div>
 
       {/* Filter tabs */}
       <div className="mb-6 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
