@@ -15,6 +15,10 @@ import {
   HiOutlineHome,
   HiOutlineBanknotes,
   HiChevronDown,
+  HiOutlineClipboardDocumentList,
+  HiOutlineSquares2X2,
+  HiOutlineChartBar,
+  HiOutlineArchiveBox,
 } from "react-icons/hi2";
 import { useSeasonContext } from "@/components/SeasonProvider";
 
@@ -23,6 +27,11 @@ const navItems = [
   { href: "/standings", label: "Standings", icon: HiOutlineTrophy },
   { href: "/rosters", label: "Rosters", icon: HiOutlineUserGroup },
   { href: "/matchups", label: "Matchups", icon: HiOutlineCalendarDays },
+  { href: "/power-rankings", label: "Rankings", icon: HiOutlineChartBar },
+  { href: "/playoffs", label: "Playoffs", icon: HiOutlineTrophy },
+  { href: "/draft", label: "Draft", icon: HiOutlineClipboardDocumentList },
+  { href: "/draft-picks", label: "Picks", icon: HiOutlineSquares2X2 },
+  { href: "/records", label: "Records", icon: HiOutlineArchiveBox },
   { href: "/transactions", label: "Activity", icon: HiOutlineArrowsRightLeft },
   { href: "/dues", label: "Dues", icon: HiOutlineBanknotes },
   { href: "/rules", label: "Rules", icon: HiOutlineDocumentText },
